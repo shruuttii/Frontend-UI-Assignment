@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Directory</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f7f9fc;
+    }
+    .header, .footer {
+      background-color: #004d99;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .top-controls, .sort-controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      flex-wrap: wrap;
+      padding: 20px 10px;
+    }
+    input[type="text"], input[type="email"], select {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .add-btn, button {
+      background-color: #347eed;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    .add-btn:hover, button:hover {
+      background-color: #0056b3;
+    }
+    .employee-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    .employee-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      width: 270px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .card-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .card-buttons button:last-child {
+      background-color: #dc3545;
+    }
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      padding: 25px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 400px;
+    }
+    .modal-content input {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .form-buttons {
+      display: flex;
+      justify-content: space-between;
+    }
+    .hidden { display: none !important; }
+    .pagination-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding-bottom: 30px;
+    }
+    #filterSidebar {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 15px;
+      max-width: 300px;
+      margin: 0 auto 20px auto;
+    }
+    #filterSidebar input {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <h1>Employee Directory</h1>
+    <div class="top-controls">
+      <input type="text" id="searchInput" placeholder="Search by name or email" oninput="searchEmployees()">
+      <button onclick="openModal()" class="add-btn">Add Employee</button>
+      <button onclick="toggleFilter()" class="add-btn">Filter</button>
+    </div>
+
+    <!-- FILTER SECTION -->
+    <div id="filterSidebar" class="hidden">
+      <input type="text" id="filterName" placeholder="Filter by First Name" oninput="applyFilters()">
+      <input type="text" id="filterDept" placeholder="Filter by Department" oninput="applyFilters()">
+      <input type="text" id="filterRole" placeholder="Filter by Role" oninput="applyFilters()">
+    </div>
+
+    <div class="sort-controls">
+      <label>Sort:</label>
+      <select id="sortSelect" onchange="sortEmployees()">
+        <option value="">--Select--</option>
+        <option value="firstName">First Name</option>
+        <option value="department">Department</option>
+      </select>
+      <label>Show:</label>
+      <select id="pagination" onchange="changePageSize()">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+      </select>
+    </div>
+  </header>
+
+  <main id="employeeContainer" class="employee-grid"></main>
+
+  <div class="pagination-controls">
+    <button onclick="changePage(-1)">Previous</button>
+    <span id="pageInfo"></span>
+    <button onclick="changePage(1)">Next</button>
+  </div>
+
+  <!-- Modal -->
+  <div id="employeeModal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="modalTitle">Add Employee</h2>
+      <form id="employeeForm">
+        <input type="hidden" id="empId">
+        <label>First Name:<input type="text" id="firstName" required></label>
+        <label>Last Name:<input type="text" id="lastName" required></label>
+        <label>Email:<input type="email" id="email" required></label>
+        <label>Department:<input type="text" id="department" required></label>
+        <label>Role:<input type="text" id="role" required></label>
+        <div class="form-buttons">
+          <button type="submit">Save</button>
+          <button type="button" onclick="closeModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2025 Employee Directory App. All rights reserved.</p>
+  </footer>
+
+  <script>
+    let employees = [
+      { id: 1, firstName: "Alice", lastName: "Smith", email: "alice@example.com", department: "HR", role: "Manager" },
+      { id: 2, firstName: "Bob", lastName: "Johnson", email: "bob@example.com", department: "IT", role: "Developer" },
+      { id: 3, firstName: "Charlie", lastName: "Lee", email: "charlie@example.com", department: "Finance", role: "Analyst" },
+      { id: 4, firstName: "David", lastName: "Brown", email: "david@example.com", department: "Sales", role: "Executive" },
+      { id: 5, firstName: "Ella", lastName: "Wilson", email: "ella@example.com", department: "Marketing", role: "Coordinator" },
+      { id: 6, firstName: "Frank", lastName: "Green", email: "frank@example.com", department: "IT", role: "Support" }
+    ];
+
+    let filteredEmployees = [...employees];
+    let pageSize = 10;
+    let currentPage = 1;
+
+    function renderEmployees() {
+      const container = document.getElementById("employeeContainer");
+      container.innerHTML = "";
+      const start = (currentPage - 1) * pageSize;
+      const paginated = filteredEmployees.slice(start, start + pageSize);
+
+      paginated.forEach(emp => {
+        const card = document.createElement("div");
+        card.className = "employee-card";
+        card.innerHTML = `
+          <h3>${emp.firstName} ${emp.lastName}</h3>
+          <p><strong>Email:</strong> ${emp.email}</p>
+          <p><strong>Department:</strong> ${emp.department}</p>
+          <p><strong>Role:</strong> ${emp.role}</p>
+          <div class="card-buttons">
+            <button onclick="editEmployee(${emp.id})">Edit</button>
+            <button onclick="deleteEmployee(${emp.id})">Delete</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const pageInfo = document.getElementById("pageInfo");
+      const totalPages = Math.ceil(filteredEmployees.length / pageSize);
+      pageInfo.innerText = `Page ${currentPage} of ${totalPages}`;
+    }
+
+    function toggleFilter() {
+      document.getElementById("filterSidebar").classList.toggle("hidden");
+    }
+
+    function applyFilters() {
+      const name = document.getElementById("filterName").value.toLowerCase();
+      const dept = document.getElementById("filterDept").value.toLowerCase();
+      const role = document.getElementById("filterRole").value.toLowerCase();
+      filteredEmployees = employees.filter(e =>
+        e.firstName.toLowerCase().includes(name) &&
+        e.department.toLowerCase().includes(dept) &&
+        e.role.toLowerCase().includes(role)
+      );
+      currentPage = 1;
+      renderEmployees();
+    }
+
+    function changePageSize() {
+      pageSize = parseInt(document.getElementById("pagination").value);
+      currentPage = 1;
+      renderEmployees();
+    }
+
+    function changePage(dir) {
+      const totalPages = Math.ceil(filteredEmployees.length / pageSize);
+      currentPage += dir;
+      if (currentPage < 1) currentPage = 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+      renderEmployees();
+    }
+
+    function openModal(data = null) {
+      const modal = document.getElementById("employeeModal");
+      modal.classList.remove("hidden");
+      document.getElementById("modalTitle").innerText = data ? "Edit Employee" : "Add Employee";
+      document.getElementById("empId").value = data ? data.id : "";
+      document.getElementById("firstName").value = data ? data.firstName : "";
+      document.getElementById("lastName").value = data ? data.lastName : "";
+      document.getElementById("email").value = data ? data.email : "";
+      document.getElementById("department").value = data ? data.department : "";
+      document.getElementById("role").value = data ? data.role : "";
+    }
+
+    function closeModal() {
+      document.getElementById("employeeModal").classList.add("hidden");
+      document.getElementById("employeeForm").reset();
+    }
+
+    function editEmployee(id) {
+      const emp = employees.find(e => e.id === id);
+      if (emp) openModal(emp);
+    }
+
+    function deleteEmployee(id) {
+      if (confirm("Are you sure?")) {
+        employees = employees.filter(emp => emp.id !== id);
+        filteredEmployees = [...employees];
+        renderEmployees();
+      }
+    }
+
+    function sortEmployees() {
+      const value = document.getElementById("sortSelect").value;
+      if (value) {
+        filteredEmployees.sort((a, b) => a[value].localeCompare(b[value]));
+        renderEmployees();
+      }
+    }
+
+    function searchEmployees() {
+      const q = document.getElementById("searchInput").value.toLowerCase();
+      filteredEmployees = employees.filter(e =>
+        e.firstName.toLowerCase().includes(q) ||
+        e.lastName.toLowerCase().includes(q) ||
+        e.email.toLowerCase().includes(q)
+      );
+      currentPage = 1;
+      renderEmployees();
+    }
+
+    document.getElementById("employeeForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const id = document.getElementById("empId").value;
+      const employee = {
+        id: id ? parseInt(id) : Date.now(),
+        firstName: document.getElementById("firstName").value,
+        lastName: document.getElementById("lastName").value,
+        email: document.getElementById("email").value,
+        department: document.getElementById("department").value,
+        role: document.getElementById("role").value
+      };
+      if (id) {
+        employees = employees.map(emp => emp.id === employee.id ? employee : emp);
+      } else {
+        employees.push(employee);
+      }
+      filteredEmployees = [...employees];
+      closeModal();
+      renderEmployees();
+    });
+
+    window.onload = function() {
+      filteredEmployees = [...employees];
+      renderEmployees();
+    };
+  </script>
+</body>
+</html>
